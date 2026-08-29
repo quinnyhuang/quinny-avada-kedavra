@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AVADA KEDAVRA — 拍打咒語偵測器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-void:#0a0710;
+    --bg-panel:#150f1e;
+    --bg-panel-2:#1c1428;
+    --line: rgba(212,175,55,0.16);
+    --gold:#d4af37;
+    --gold-soft: rgba(212,175,55,0.55);
+    --avada:#43ff8a;
+    --avada-dim: rgba(67,255,138,0.22);
+    --text:#f4eee0;
+    --text-muted:#9c8fb0;
+    --danger:#ff5f6d;
+    --radius: 20px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(60% 50% at 50% -10%, rgba(212,175,55,0.10), transparent 60%),
+      radial-gradient(80% 60% at 50% 110%, rgba(67,255,138,0.06), transparent 60%),
+      var(--bg-void);
+    color:var(--text);
+    font-family:'Inter', system-ui, sans-serif;
+    display:flex;
+    justify-content:center;
+    padding: 32px 16px 56px;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x:hidden;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  }
+
+  .stage{
+    width:100%;
+    max-width:460px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:26px;
+  }
+
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.22em;
+    text-transform:uppercase;
+    color:var(--gold-soft);
+    text-align:center;
+  }
+
+  h1{
+    font-family:'Cinzel', serif;
+    font-weight:800;
+    font-size:clamp(30px, 8vw, 44px);
+    letter-spacing:0.06em;
+    margin:0;
+    text-align:center;
+    background:linear-gradient(180deg, #f7ecc8 0%, var(--gold) 55%, #8a6a1a 100%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    filter: drop-shadow(0 2px 18px rgba(212,175,55,0.25));
+  }
+
+  .subtitle{
+    text-align:center;
+    color:var(--text-muted);
+    font-size:14.5px;
+    line-height:1.6;
+    margin-top:-10px;
+    max-width:340px;
+  }
+
+  /* ---------- dial ---------- */
+  .dial-wrap{
+    position:relative;
+    width:260px;
+    height:260px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .shock{
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    border:2px solid var(--avada);
+    opacity:0;
+    pointer-events:none;
+  }
+  .shock.fire{
+    animation: shockwave 650ms cubic-bezier(.15,.7,.3,1) forwards;
+  }
+  @keyframes shockwave{
+    0%{ transform:scale(0.6); opacity:0.9; }
+    100%{ transform:scale(1.85); opacity:0; }
+  }
+
+  svg.dial{ width:260px; height:260px; transform:rotate(-90deg); }
+  .dial-track{ fill:none; stroke: rgba(255,255,255,0.06); stroke-width:10; }
+  .dial-fill{
+    fill:none;
+    stroke: var(--gold);
+    stroke-width:10;
+    stroke-linecap:round;
+    stroke-dasharray: 691.15;
+    stroke-dashoffset: 691.15;
+    transition: stroke-dashoffset 60ms linear, stroke 120ms ease;
+  }
+  .dial-fill.triggered{ stroke: var(--avada); }
+
+  .dial-center{
+    position:absolute;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    text-align:center;
+  }
+  .dial-glyph{
+    font-family:'Cinzel', serif;
+    font-size:15px;
+    letter-spacing:0.14em;
+    color:var(--text-muted);
+    transition: color 150ms ease, text-shadow 150ms ease;
+  }
+  .dial-glyph.triggered{
+    color:var(--avada);
+    text-shadow: 0 0 16px rgba(67,255,138,0.65);
+  }
+  .dial-reading{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color: rgba(244,238,224,0.4);
+  }
+
+  .status-line{
+    min-height:26px;
+    font-family:'Cinzel', serif;
+    font-size:18px;
+    letter-spacing:0.04em;
+    color:var(--avada);
+    text-align:center;
+    text-shadow: 0 0 20px rgba(67,255,138,0.35);
+  }
+
+  /* ---------- mode select ---------- */
+  .mode-select{
+    display:flex;
+    gap:12px;
+    width:100%;
+  }
+  .mode-btn{
+    flex:1;
+    padding:16px 10px;
+    border-radius: var(--radius);
+    border:1px solid var(--line);
+    background: linear-gradient(180deg, var(--bg-panel-2), var(--bg-panel));
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:14.5px;
+    text-align:center;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    transition: border-color 150ms ease, transform 100ms ease;
+  }
+  .mode-btn:active{ transform: scale(0.97); }
+  .mode-btn .icon{ font-size:22px; }
+  .mode-btn .hint{ font-size:11.5px; color:var(--text-muted); font-weight:400; }
+  .mode-btn.active{ border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+
+  .primary-btn{
+    width:100%;
+    padding:16px;
+    border-radius: var(--radius);
+    border:none;
+    background: linear-gradient(180deg, #efd88a, var(--gold) 60%, #a9822a);
+    color:#1a1206;
+    font-family:'Cinzel', serif;
+    font-weight:700;
+    font-size:15.5px;
+    letter-spacing:0.04em;
+    cursor:pointer;
+    box-shadow: 0 8px 22px rgba(212,175,55,0.22);
+  }
+  .primary-btn:active{ transform: translateY(1px); }
+  .primary-btn:disabled{ opacity:0.45; cursor:not-allowed; }
+
+  .stop-btn{
+    width:100%;
+    padding:13px;
+    border-radius: var(--radius);
+    border:1px solid rgba(255,95,109,0.35);
+    background: rgba(255,95,109,0.08);
+    color: var(--danger);
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+  }
+
+  .note{
+    font-size:12.5px;
+    color:var(--text-muted);
+    text-align:center;
+    line-height:1.6;
+    max-width:340px;
+  }
+
+  /* ---------- stats ---------- */
+  .stats{
+    display:flex;
+    width:100%;
+    gap:12px;
+  }
+  .stat-card{
+    flex:1;
+    border-radius: var(--radius);
+    border:1px solid var(--line);
+    background: linear-gradient(180deg, var(--bg-panel-2), var(--bg-panel));
+    padding:14px 10px;
+    text-align:center;
+  }
+  .stat-num{
+    font-family:'JetBrains Mono', monospace;
+    font-weight:700;
+    font-size:24px;
+    color:var(--gold);
+  }
+  .stat-label{
+    font-size:11px;
+    color:var(--text-muted);
+    margin-top:4px;
+    letter-spacing:0.05em;
+  }
+
+  /* ---------- settings ---------- */
+  details.settings{
+    width:100%;
+    border-radius: var(--radius);
+    border:1px solid var(--line);
+    background: linear-gradient(180deg, var(--bg-panel-2), var(--bg-panel));
+    padding: 4px 18px;
+  }
+  details.settings summary{
+    cursor:pointer;
+    padding:14px 0;
+    font-size:13.5px;
+    font-weight:600;
+    color:var(--text);
+    list-style:none;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  details.settings summary::-webkit-details-marker{ display:none; }
+  summary .chev{ transition: transform 150ms ease; color:var(--gold-soft); }
+  details[open] summary .chev{ transform: rotate(90deg); }
+
+  .setting-row{ padding: 4px 0 18px; }
+  .setting-row + .setting-row{ border-top:1px solid var(--line); padding-top:16px; }
+  .setting-row label{
+    display:flex;
+    justify-content:space-between;
+    font-size:12.5px;
+    color:var(--text-muted);
+    margin-bottom:8px;
+  }
+  .setting-row label span.val{ color:var(--gold); font-family:'JetBrains Mono', monospace; }
+  input[type=range]{
+    width:100%;
+    accent-color: var(--gold);
+    height:4px;
+  }
+
+  .log{
+    width:100%;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color: rgba(156,143,176,0.7);
+    text-align:center;
+    min-height:16px;
+  }
+
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="eyebrow">Spell Impact Detector · MVP</div>
+  <h1>AVADA KEDAVRA</h1>
+  <p class="subtitle">拍打偵測 × 咒語語音反應。挑選裝置模式，拍下去看看會唸出什麼。</p>
+
+  <div class="dial-wrap">
+    <div class="shock" id="shock"></div>
+    <svg class="dial" viewBox="0 0 240 240">
+      <circle class="dial-track" cx="120" cy="120" r="110"></circle>
+      <circle class="dial-fill" id="dialFill" cx="120" cy="120" r="110"></circle>
+    </svg>
+    <div class="dial-center">
+      <div class="dial-glyph" id="dialGlyph">待命中</div>
+      <div class="dial-reading" id="dialReading">0.00</div>
+    </div>
+  </div>
+
+  <div class="status-line" id="statusLine">&nbsp;</div>
+
+  <div class="mode-select" id="modeSelect">
+    <button class="mode-btn active" data-mode="mobile" id="btnMobile">
+      <span class="icon">📱</span>
+      <span>手機模式</span>
+      <span class="hint">拍打 / 搖晃手機</span>
+    </button>
+    <button class="mode-btn" data-mode="desktop" id="btnDesktop">
+      <span class="icon">💻</span>
+      <span>電腦模式</span>
+      <span class="hint">用麥克風收拍打聲</span>
+    </button>
+  </div>
+
+  <button class="primary-btn" id="startBtn">開始偵測</button>
+  <button class="stop-btn hidden" id="stopBtn">停止偵測</button>
+
+  <p class="note" id="permNote">
+    手機模式：iOS 需要先允許「動作與方向」權限，按下開始後會跳出系統詢問視窗。
+  </p>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-num" id="hitCount">0</div>
+      <div class="stat-label">已施咒次數</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="lastForce">—</div>
+      <div class="stat-label">上次力道</div>
+    </div>
+  </div>
+
+  <details class="settings">
+    <summary>進階設定<span class="chev">›</span></summary>
+    <div class="setting-row">
+      <label>靈敏度（閾值） <span class="val" id="sensVal">1.6</span></label>
+      <input type="range" id="sensRange" min="0.5" max="4" step="0.05" value="1.6">
+    </div>
+    <div class="setting-row">
+      <label>冷卻時間（毫秒） <span class="val" id="cdVal">700</span></label>
+      <input type="range" id="cdRange" min="200" max="2000" step="50" value="700">
+    </div>
+  </details>
+
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  var mode = "mobile";
+  var running = false;
+  var cooldownUntil = 0;
+  var hitCount = 0;
+
+  var sensitivity = 1.6;   // mobile: acceleration delta threshold (m/s^2-ish, after high-pass)
+  var micSensitivity = 1.6; // desktop: multiplier over rolling baseline
+  var cooldownMs = 700;
+
+  // mobile high-pass state
+  var gravity = { x: 0, y: 0, z: 0 };
+  var GRAVITY_ALPHA = 0.85; // low-pass factor to estimate/remove gravity
+
+  // desktop mic state
+  var audioCtx = null, analyser = null, micStream = null, micData = null;
+  var micBaseline = 0.02;
+  var rafId = null;
+
+  var DIAL_CIRC = 691.15; // 2 * PI * 110
+
+  // ---------- speech ----------
+  var PHRASES = [
+    { min: 0,   text: "avada... kedavra?", rate: 0.85, pitch: 0.9, vol: 0.5 },
+    { min: 1,   text: "Avada Kedavra.",     rate: 0.95, pitch: 0.85, vol: 0.85 },
+    { min: 1.6, text: "AVADA KEDAVRA!",     rate: 1.05, pitch: 0.75, vol: 1.0 },
+    { min: 2.4, text: "A V A D A · K E D A V R A !!",  rate: 1.15, pitch: 0.65, vol: 1.0 }
+  ];
+
+  function pickPhrase(forceRatio){
+    var chosen = PHRASES[0];
+    for (var i = 0; i < PHRASES.length; i++){
+      if (forceRatio >= PHRASES[i].min) chosen = PHRASES[i];
+    }
+    return chosen;
+  }
+
+  function speak(forceRatio){
+    if (!('speechSynthesis' in window)) return;
+    var p = pickPhrase(forceRatio);
+    try { window.speechSynthesis.cancel(); } catch(e){}
+    var u = new SpeechSynthesisUtterance(p.text);
+    u.lang = "en-GB";
+    u.rate = p.rate;
+    u.pitch = p.pitch;
+    u.volume = p.vol;
+    window.speechSynthesis.speak(u);
+  }
+
+  // ---------- UI refs ----------
+  var $ = function(id){ return document.getElementById(id); };
+  var dialFill = $("dialFill");
+  var dialGlyph = $("dialGlyph");
+  var dialReading = $("dialReading");
+  var statusLine = $("statusLine");
+  var shock = $("shock");
+  var hitCountEl = $("hitCount");
+  var lastForceEl = $("lastForce");
+  var startBtn = $("startBtn");
+  var stopBtn = $("stopBtn");
+  var modeSelect = $("modeSelect");
+  var btnMobile = $("btnMobile");
+  var btnDesktop = $("btnDesktop");
+  var permNote = $("permNote");
+  var sensRange = $("sensRange");
+  var cdRange = $("cdRange");
+  var sensVal = $("sensVal");
+  var cdVal = $("cdVal");
+  var logEl = $("log");
+
+  function setLog(msg){ logEl.textContent = msg || ""; }
+
+  function setDialLevel(ratio){
+    ratio = Math.max(0, Math.min(1, ratio));
+    var offset = DIAL_CIRC * (1 - ratio);
+    dialFill.style.strokeDashoffset = offset.toFixed(2);
+  }
+
+  function setReading(v){
+    dialReading.textContent = v.toFixed(2);
+  }
+
+  function fireTrigger(forceRatio){
+    var now = Date.now();
+    if (now < cooldownUntil) return;
+    cooldownUntil = now + cooldownMs;
+
+    hitCount++;
+    hitCountEl.textContent = hitCount;
+    lastForceEl.textContent = forceRatio.toFixed(2) + "×";
+
+    dialFill.classList.add("triggered");
+    dialGlyph.classList.add("triggered");
+    dialGlyph.textContent = forceRatio >= 2.4 ? "ULTRA COMBO" : forceRatio >= 1.6 ? "全力一擊" : "命中";
+    setDialLevel(1);
+
+    shock.classList.remove("fire");
+    void shock.offsetWidth; // restart animation
+    shock.classList.add("fire");
+
+    var p = pickPhrase(forceRatio);
+    statusLine.textContent = "“ " + p.text + " ”";
+
+    speak(forceRatio);
+
+    setTimeout(function(){
+      dialFill.classList.remove("triggered");
+      dialGlyph.classList.remove("triggered");
+      dialGlyph.textContent = running ? "待命中" : "待命中";
+      setDialLevel(0);
+    }, Math.min(cooldownMs, 900));
+  }
+
+  // ---------- mobile: devicemotion ----------
+  function onDeviceMotion(e){
+    var acc = e.acceleration && (e.acceleration.x || e.acceleration.y || e.acceleration.z)
+      ? e.acceleration
+      : e.accelerationIncludingGravity;
+    if (!acc) return;
+
+    var x = acc.x || 0, y = acc.y || 0, z = acc.z || 0;
+
+    // low-pass to estimate slowly-changing gravity/orientation component
+    gravity.x = GRAVITY_ALPHA * gravity.x + (1 - GRAVITY_ALPHA) * x;
+    gravity.y = GRAVITY_ALPHA * gravity.y + (1 - GRAVITY_ALPHA) * y;
+    gravity.z = GRAVITY_ALPHA * gravity.z + (1 - GRAVITY_ALPHA) * z;
+
+    // high-pass: subtract slow component to isolate sharp impact
+    var dx = x - gravity.x, dy = y - gravity.y, dz = z - gravity.z;
+    var mag = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+    var ratio = mag / sensitivity;
+    setReading(mag);
+    setDialLevel(Math.min(ratio, 1));
+
+    if (mag >= sensitivity) {
+      fireTrigger(ratio);
+    }
+  }
+
+  function startMobile(){
+    var needsPermission = typeof DeviceMotionEvent !== "undefined" &&
+      typeof DeviceMotionEvent.requestPermission === "function";
+
+    function attach(){
+      window.addEventListener("devicemotion", onDeviceMotion, true);
+      running = true;
+      statusLine.textContent = "";
+      dialGlyph.textContent = "待命中";
+      setLog("手機模式運作中 — 拍打或搖晃手機試試");
+      toggleRunningUI(true);
+    }
+
+    if (needsPermission){
+      DeviceMotionEvent.requestPermission().then(function(state){
+        if (state === "granted") {
+          attach();
+        } else {
+          setLog("動作權限被拒絕，無法偵測 — 請至瀏覽器設定重新允許");
+        }
+      }).catch(function(err){
+        setLog("權限請求失敗：" + err.message);
+      });
+    } else if (typeof DeviceMotionEvent === "undefined") {
+      setLog("這個瀏覽器不支援動作感測器，請改用電腦模式或用手機瀏覽器開啟");
+    } else {
+      attach();
+    }
+  }
+
+  function stopMobile(){
+    window.removeEventListener("devicemotion", onDeviceMotion, true);
+  }
+
+  // ---------- desktop: microphone ----------
+  function startDesktop(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      setLog("這個瀏覽器不支援麥克風存取");
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(function(stream){
+        micStream = stream;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var source = audioCtx.createMediaStreamSource(stream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 1024;
+        analyser.smoothingTimeConstant = 0.2;
+        source.connect(analyser);
+        micData = new Uint8Array(analyser.fftSize);
+        micBaseline = 0.02;
+        running = true;
+        statusLine.textContent = "";
+        dialGlyph.textContent = "待命中";
+        setLog("電腦模式運作中 — 用手拍打桌面/筆電，讓麥克風收音");
+        toggleRunningUI(true);
+        micLoop();
+      })
+      .catch(function(err){
+        setLog("無法取得麥克風權限：" + err.message);
+      });
+  }
+
+  function micLoop(){
+    if (!running || mode !== "desktop") return;
+    analyser.getByteTimeDomainData(micData);
+
+    var sumSq = 0;
+    for (var i = 0; i < micData.length; i++){
+      var v = (micData[i] - 128) / 128;
+      sumSq += v * v;
+    }
+    var rms = Math.sqrt(sumSq / micData.length);
+
+    // rolling baseline (slow) vs instantaneous (fast) — STA/LTA-ish
+    if (rms < micBaseline * 1.4) {
+      micBaseline = micBaseline * 0.98 + rms * 0.02;
+    }
+    micBaseline = Math.max(micBaseline, 0.004);
+
+    var ratio = rms / (micBaseline * micSensitivity);
+    setReading(rms);
+    setDialLevel(Math.min(ratio, 1));
+
+    if (rms > micBaseline * micSensitivity && rms > 0.06) {
+      fireTrigger(Math.min(ratio, 3));
+    }
+
+    rafId = requestAnimationFrame(micLoop);
+  }
+
+  function stopDesktop(){
+    if (rafId) cancelAnimationFrame(rafId);
+    if (micStream) micStream.getTracks().forEach(function(t){ t.stop(); });
+    if (audioCtx) { try { audioCtx.close(); } catch(e){} }
+    audioCtx = null; analyser = null; micStream = null; micData = null;
+  }
+
+  // ---------- shared controls ----------
+  function toggleRunningUI(isRunning){
+    startBtn.classList.toggle("hidden", isRunning);
+    stopBtn.classList.toggle("hidden", !isRunning);
+    btnMobile.disabled = isRunning;
+    btnDesktop.disabled = isRunning;
+    modeSelect.style.opacity = isRunning ? 0.5 : 1;
+    modeSelect.style.pointerEvents = isRunning ? "none" : "auto";
+  }
+
+  function start(){
+    setLog("");
+    if (mode === "mobile") startMobile();
+    else startDesktop();
+  }
+
+  function stop(){
+    running = false;
+    stopMobile();
+    stopDesktop();
+    dialGlyph.textContent = "待命中";
+    setDialLevel(0);
+    statusLine.textContent = "";
+    setLog("已停止偵測");
+    toggleRunningUI(false);
+  }
+
+  btnMobile.addEventListener("click", function(){
+    if (running) return;
+    mode = "mobile";
+    btnMobile.classList.add("active");
+    btnDesktop.classList.remove("active");
+    permNote.textContent = "手機模式：iOS 需要先允許「動作與方向」權限，按下開始後會跳出系統詢問視窗。";
+  });
+
+  btnDesktop.addEventListener("click", function(){
+    if (running) return;
+    mode = "desktop";
+    btnDesktop.classList.add("active");
+    btnMobile.classList.remove("active");
+    permNote.textContent = "電腦模式：會請求麥克風權限，只用來偵測音量峰值，不會錄音或上傳任何聲音。";
+  });
+
+  startBtn.addEventListener("click", start);
+  stopBtn.addEventListener("click", stop);
+
+  sensRange.addEventListener("input", function(){
+    sensitivity = parseFloat(sensRange.value);
+    micSensitivity = sensitivity;
+    sensVal.textContent = sensitivity.toFixed(2);
+  });
+
+  cdRange.addEventListener("input", function(){
+    cooldownMs = parseInt(cdRange.value, 10);
+    cdVal.textContent = cooldownMs;
+  });
+
+  // initial paint
+  setDialLevel(0);
+  setReading(0);
+})();
+</script>
+</body>
+</html>
