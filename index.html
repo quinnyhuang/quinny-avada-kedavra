@@ -1,3 +1,4 @@
+<!-- Avada Kedavra MVP — v1.1.0 -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -9,17 +10,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg-void:#0a0710;
-    --bg-panel:#150f1e;
-    --bg-panel-2:#1c1428;
-    --line: rgba(212,175,55,0.16);
-    --gold:#d4af37;
-    --gold-soft: rgba(212,175,55,0.55);
-    --avada:#43ff8a;
-    --avada-dim: rgba(67,255,138,0.22);
-    --text:#f4eee0;
-    --text-muted:#9c8fb0;
-    --danger:#ff5f6d;
+    --bg-void:#050f0a;
+    --bg-panel:#0b1c13;
+    --bg-panel-2:#11271a;
+    --line: rgba(199,209,205,0.14);
+    --gold:#c7d1cd;          /* repurposed: now "silver" — kept var name so all existing refs still work */
+    --gold-soft: rgba(199,209,205,0.55);
+    --avada:#eef4f1;         /* trigger-flash color: bright silver-white instead of green, for contrast on a green base */
+    --avada-dim: rgba(238,244,241,0.22);
+    --emerald: #1f6b46;
+    --emerald-glow:#3aa06c;
+    --venom:#7dffb0;
+    --text:#eaf2ec;
+    --text-muted:#7f9689;
+    --danger:#c85a52;
     --radius: 20px;
   }
 
@@ -29,8 +33,8 @@
     margin:0;
     min-height:100vh;
     background:
-      radial-gradient(60% 50% at 50% -10%, rgba(212,175,55,0.10), transparent 60%),
-      radial-gradient(80% 60% at 50% 110%, rgba(67,255,138,0.06), transparent 60%),
+      radial-gradient(60% 50% at 50% -10%, rgba(58,160,108,0.14), transparent 60%),
+      radial-gradient(80% 60% at 50% 110%, rgba(199,209,205,0.05), transparent 60%),
       var(--bg-void);
     color:var(--text);
     font-family:'Inter', system-ui, sans-serif;
@@ -70,11 +74,11 @@
     letter-spacing:0.06em;
     margin:0;
     text-align:center;
-    background:linear-gradient(180deg, #f7ecc8 0%, var(--gold) 55%, #8a6a1a 100%);
+    background:linear-gradient(180deg, #ffffff 0%, var(--gold) 55%, #6f8079 100%);
     -webkit-background-clip:text;
     background-clip:text;
     color:transparent;
-    filter: drop-shadow(0 2px 18px rgba(212,175,55,0.25));
+    filter: drop-shadow(0 2px 18px rgba(58,160,108,0.35));
   }
 
   .subtitle{
@@ -113,12 +117,18 @@
   }
 
   svg.dial{ width:260px; height:260px; transform:rotate(-90deg); }
-  .dial-track{ fill:none; stroke: rgba(255,255,255,0.06); stroke-width:10; }
+  .dial-track{ fill:none; stroke: rgba(125,255,176,0.08); stroke-width:9; stroke-linejoin:round; }
+  .rune-tick{
+    stroke: rgba(199,209,205,0.35);
+    stroke-width:1.4;
+    stroke-linecap:round;
+  }
   .dial-fill{
     fill:none;
     stroke: var(--gold);
-    stroke-width:10;
+    stroke-width:9;
     stroke-linecap:round;
+    stroke-linejoin:round;
     stroke-dasharray: 691.15;
     stroke-dashoffset: 691.15;
     transition: stroke-dashoffset 60ms linear, stroke 120ms ease;
@@ -143,7 +153,7 @@
   }
   .dial-glyph.triggered{
     color:var(--avada);
-    text-shadow: 0 0 16px rgba(67,255,138,0.65);
+    text-shadow: 0 0 16px rgba(238,244,241,0.75);
   }
   .dial-reading{
     font-family:'JetBrains Mono', monospace;
@@ -158,7 +168,7 @@
     letter-spacing:0.04em;
     color:var(--avada);
     text-align:center;
-    text-shadow: 0 0 20px rgba(67,255,138,0.35);
+    text-shadow: 0 0 20px rgba(238,244,241,0.4);
   }
 
   /* ---------- mode select ---------- */
@@ -195,14 +205,14 @@
     padding:16px;
     border-radius: var(--radius);
     border:none;
-    background: linear-gradient(180deg, #efd88a, var(--gold) 60%, #a9822a);
-    color:#1a1206;
+    background: linear-gradient(180deg, #ffffff, var(--gold) 55%, #5c6d66 100%);
+    color:#0b1c13;
     font-family:'Cinzel', serif;
     font-weight:700;
     font-size:15.5px;
     letter-spacing:0.04em;
     cursor:pointer;
-    box-shadow: 0 8px 22px rgba(212,175,55,0.22);
+    box-shadow: 0 8px 22px rgba(58,160,108,0.28);
   }
   .primary-btn:active{ transform: translateY(1px); }
   .primary-btn:disabled{ opacity:0.45; cursor:not-allowed; }
@@ -321,6 +331,14 @@
   }
 
   .hidden{ display:none !important; }
+
+  .version-tag{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10px;
+    color: rgba(156,143,176,0.4);
+    letter-spacing:0.08em;
+    margin-top:4px;
+  }
 </style>
 </head>
 <body>
@@ -332,9 +350,21 @@
 
   <div class="dial-wrap">
     <div class="shock" id="shock"></div>
-    <svg class="dial" viewBox="0 0 240 240">
-      <circle class="dial-track" cx="120" cy="120" r="110"></circle>
-      <circle class="dial-fill" id="dialFill" cx="120" cy="120" r="110"></circle>
+    <svg class="dial" viewBox="0 0 260 260">
+      <g class="rune-ticks">
+      <line class="rune-tick" x1="230.06" y1="145.12" x2="237.97" y2="146.32"></line>
+      <line class="rune-tick" x1="201.81" y1="200.80" x2="207.51" y2="206.42"></line>
+      <line class="rune-tick" x1="143.49" y1="211.44" x2="144.80" y2="219.33"></line>
+      <line class="rune-tick" x1="85.89" y1="218.12" x2="82.30" y2="225.27"></line>
+      <line class="rune-tick" x1="42.03" y1="175.61" x2="34.93" y2="179.29"></line>
+      <line class="rune-tick" x1="42.19" y1="116.73" x2="34.28" y2="115.53"></line>
+      <line class="rune-tick" x1="66.51" y1="67.41" x2="60.82" y2="61.79"></line>
+      <line class="rune-tick" x1="112.44" y1="23.99" x2="111.13" y2="16.10"></line>
+      <line class="rune-tick" x1="170.94" y1="48.22" x2="174.52" y2="41.06"></line>
+      <line class="rune-tick" x1="210.70" y1="88.16" x2="217.81" y2="84.47"></line>
+      </g>
+      <path class="dial-track" d="M 225.38 130.00 C 226.58 136.72 224.22 144.43 221.96 150.99 C 219.69 157.55 214.67 162.97 211.77 169.38 C 208.87 175.79 208.36 183.70 204.55 189.45 C 200.74 195.20 194.88 200.36 188.91 203.88 C 182.95 207.39 175.65 209.92 168.78 210.52 C 161.90 211.12 154.15 207.66 147.68 207.48 C 141.22 207.31 136.35 207.48 130.00 209.47 C 123.65 211.45 116.37 218.59 109.59 219.41 C 102.82 220.23 95.70 217.08 89.36 214.39 C 83.02 211.71 77.09 207.53 71.55 203.29 C 66.01 199.05 60.52 194.33 56.11 188.93 C 51.70 183.53 47.91 177.25 45.10 170.88 C 42.29 164.51 39.21 157.53 39.25 150.71 C 39.30 143.90 44.18 136.63 45.38 130.00 C 46.58 123.37 45.77 117.39 46.47 110.93 C 47.17 104.48 46.70 96.90 49.59 91.28 C 52.49 85.66 59.30 81.91 63.82 77.22 C 68.33 72.53 72.21 67.96 76.69 63.15 C 81.16 58.33 85.52 53.54 90.68 48.35 C 95.83 43.15 101.08 35.14 107.63 31.99 C 114.18 28.85 123.00 27.48 130.00 29.47 C 137.00 31.45 143.40 40.13 149.65 43.92 C 155.89 47.71 161.77 49.11 167.46 52.22 C 173.15 55.33 178.88 58.48 183.78 62.56 C 188.68 66.64 192.92 71.66 196.84 76.70 C 200.75 81.74 204.29 87.12 207.28 92.78 C 210.26 98.44 211.72 104.46 214.74 110.66 C 217.76 116.86 224.18 123.28 225.38 130.00 Z"></path>
+      <path class="dial-fill" id="dialFill" d="M 225.38 130.00 C 226.58 136.72 224.22 144.43 221.96 150.99 C 219.69 157.55 214.67 162.97 211.77 169.38 C 208.87 175.79 208.36 183.70 204.55 189.45 C 200.74 195.20 194.88 200.36 188.91 203.88 C 182.95 207.39 175.65 209.92 168.78 210.52 C 161.90 211.12 154.15 207.66 147.68 207.48 C 141.22 207.31 136.35 207.48 130.00 209.47 C 123.65 211.45 116.37 218.59 109.59 219.41 C 102.82 220.23 95.70 217.08 89.36 214.39 C 83.02 211.71 77.09 207.53 71.55 203.29 C 66.01 199.05 60.52 194.33 56.11 188.93 C 51.70 183.53 47.91 177.25 45.10 170.88 C 42.29 164.51 39.21 157.53 39.25 150.71 C 39.30 143.90 44.18 136.63 45.38 130.00 C 46.58 123.37 45.77 117.39 46.47 110.93 C 47.17 104.48 46.70 96.90 49.59 91.28 C 52.49 85.66 59.30 81.91 63.82 77.22 C 68.33 72.53 72.21 67.96 76.69 63.15 C 81.16 58.33 85.52 53.54 90.68 48.35 C 95.83 43.15 101.08 35.14 107.63 31.99 C 114.18 28.85 123.00 27.48 130.00 29.47 C 137.00 31.45 143.40 40.13 149.65 43.92 C 155.89 47.71 161.77 49.11 167.46 52.22 C 173.15 55.33 178.88 58.48 183.78 62.56 C 188.68 66.64 192.92 71.66 196.84 76.70 C 200.75 81.74 204.29 87.12 207.28 92.78 C 210.26 98.44 211.72 104.46 214.74 110.66 C 217.76 116.86 224.18 123.28 225.38 130.00 Z"></path>
     </svg>
     <div class="dial-center">
       <div class="dial-glyph" id="dialGlyph">待命中</div>
@@ -390,6 +420,7 @@
   </details>
 
   <div class="log" id="log"></div>
+  <div class="version-tag">v1.1.0</div>
 </div>
 
 <script>
@@ -436,7 +467,7 @@
   var micBaseline = 0.02;
   var rafId = null;
 
-  var DIAL_CIRC = 691.15; // 2 * PI * 110
+  var DIAL_CIRC = 691.15; // fallback; real value measured from the irregular ritual-circle path on init
 
   // ---------- speech ----------
   // word1 / word2 spoken as two separate utterances with a real pause between them,
@@ -812,6 +843,10 @@
   });
 
   // initial paint
+  try {
+    DIAL_CIRC = dialFill.getTotalLength();
+    dialFill.style.strokeDasharray = DIAL_CIRC;
+  } catch(e){ /* keep fallback constant */ }
   applySensRangeForMode();
   setDialLevel(0);
   setReading(0);
