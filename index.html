@@ -294,6 +294,23 @@
     height:4px;
   }
 
+  .slider-hint{
+    display:flex;
+    justify-content:space-between;
+    font-size:10.5px;
+    color: rgba(156,143,176,0.75);
+    margin-top:4px;
+  }
+
+  .calib-tip{
+    font-size:11.5px;
+    color: var(--text-muted);
+    line-height:1.6;
+    padding: 4px 0 16px;
+    border-top:1px solid var(--line);
+    margin-top:4px;
+  }
+
   .log{
     width:100%;
     font-family:'JetBrains Mono', monospace;
@@ -361,13 +378,15 @@
   <details class="settings">
     <summary>進階設定<span class="chev">›</span></summary>
     <div class="setting-row">
-      <label>靈敏度（閾值） <span class="val" id="sensVal">1.6</span></label>
-      <input type="range" id="sensRange" min="0.5" max="4" step="0.05" value="1.6">
+      <label>靈敏度門檻 <span class="val" id="sensVal">8.0</span></label>
+      <input type="range" id="sensRange" min="2" max="30" step="0.5" value="8">
+      <div class="slider-hint"><span>數值小→輕輕晃就觸發</span><span>數值大→要用力拍才觸發</span></div>
     </div>
     <div class="setting-row">
       <label>冷卻時間（毫秒） <span class="val" id="cdVal">700</span></label>
       <input type="range" id="cdRange" min="200" max="2000" step="50" value="700">
     </div>
+    <p class="calib-tip">💡 校準小技巧：按「開始偵測」後，先讓手機/裝置靜置或正常拿著不動，觀察圓環中央數字——那就是目前的雜訊基準值，把靈敏度門檻調到明顯高於那個數字，才不會亂觸發。</p>
   </details>
 
   <div class="log" id="log"></div>
@@ -383,9 +402,17 @@
   var cooldownUntil = 0;
   var hitCount = 0;
 
-  var sensitivity = 1.6;   // mobile: acceleration delta threshold (m/s^2-ish, after high-pass)
-  var micSensitivity = 1.6; // desktop: multiplier over rolling baseline
+  // mobile: acceleration delta threshold, in m/s^2-ish units after high-pass filtering.
+  // Real-world testing showed normal handheld shake easily reads 10-20+, so the
+  // usable range needs to sit well above that, not near 0.5-4 like a first guess.
+  var mobileSensitivity = 8;
+  var micSensitivity = 1.8; // desktop: multiplier over rolling mic baseline
   var cooldownMs = 700;
+
+  var SENS_RANGES = {
+    mobile:  { min: 2,   max: 30, step: 0.5,  def: 8   },
+    desktop: { min: 1.1, max: 4,  step: 0.05, def: 1.8 }
+  };
 
   // mobile high-pass state
   var gravity = { x: 0, y: 0, z: 0 };
@@ -399,11 +426,13 @@
   var DIAL_CIRC = 691.15; // 2 * PI * 110
 
   // ---------- speech ----------
+  // word1 / word2 spoken as two separate utterances with a real pause between them,
+  // instead of relying on punctuation inside one string (unreliable across browsers/voices).
   var PHRASES = [
-    { min: 0,   text: "avada... kedavra?", rate: 0.85, pitch: 0.9, vol: 0.5 },
-    { min: 1,   text: "Avada Kedavra.",     rate: 0.95, pitch: 0.85, vol: 0.85 },
-    { min: 1.6, text: "AVADA KEDAVRA!",     rate: 1.05, pitch: 0.75, vol: 1.0 },
-    { min: 2.4, text: "A V A D A · K E D A V R A !!",  rate: 1.15, pitch: 0.65, vol: 1.0 }
+    { min: 0,   display: "avada... kedavra?", word1: "avada",  word2: "kedavra",  rate: 0.8,  pitch: 0.95, vol: 0.5,  gapMs: 260 },
+    { min: 1,   display: "Avada. Kedavra.",   word1: "Avada",  word2: "Kedavra",  rate: 0.9,  pitch: 0.85, vol: 0.85, gapMs: 320 },
+    { min: 1.6, display: "AVADA — KEDAVRA!",  word1: "Avada",  word2: "Kedavra!", rate: 1.0,  pitch: 0.75, vol: 1.0,  gapMs: 380 },
+    { min: 2.4, display: "AVADA —— KEDAVRA!!",word1: "AVADA",  word2: "KEDAVRA!!",rate: 1.05, pitch: 0.6,  vol: 1.0,  gapMs: 450 }
   ];
 
   function pickPhrase(forceRatio){
@@ -418,12 +447,25 @@
     if (!('speechSynthesis' in window)) return;
     var p = pickPhrase(forceRatio);
     try { window.speechSynthesis.cancel(); } catch(e){}
-    var u = new SpeechSynthesisUtterance(p.text);
-    u.lang = "en-GB";
-    u.rate = p.rate;
-    u.pitch = p.pitch;
-    u.volume = p.vol;
-    window.speechSynthesis.speak(u);
+
+    var u1 = new SpeechSynthesisUtterance(p.word1);
+    u1.lang = "en-GB";
+    u1.rate = p.rate;
+    u1.pitch = p.pitch;
+    u1.volume = p.vol;
+
+    u1.onend = function(){
+      setTimeout(function(){
+        var u2 = new SpeechSynthesisUtterance(p.word2);
+        u2.lang = "en-GB";
+        u2.rate = p.rate;
+        u2.pitch = p.pitch * 0.92; // slightly deeper on the second word for weight
+        u2.volume = p.vol;
+        window.speechSynthesis.speak(u2);
+      }, p.gapMs);
+    };
+
+    window.speechSynthesis.speak(u1);
   }
 
   // ---------- UI refs ----------
@@ -478,7 +520,7 @@
     shock.classList.add("fire");
 
     var p = pickPhrase(forceRatio);
-    statusLine.textContent = "“ " + p.text + " ”";
+    statusLine.textContent = "“ " + p.display + " ”";
 
     speak(forceRatio);
 
@@ -508,11 +550,11 @@
     var dx = x - gravity.x, dy = y - gravity.y, dz = z - gravity.z;
     var mag = Math.sqrt(dx*dx + dy*dy + dz*dz);
 
-    var ratio = mag / sensitivity;
+    var ratio = mag / mobileSensitivity;
     setReading(mag);
     setDialLevel(Math.min(ratio, 1));
 
-    if (mag >= sensitivity) {
+    if (mag >= mobileSensitivity) {
       fireTrigger(ratio);
     }
   }
@@ -597,7 +639,7 @@
     }
     micBaseline = Math.max(micBaseline, 0.004);
 
-    var ratio = rms / (micBaseline * micSensitivity);
+    var ratio = rms / (micBaseline * micSensitivity + 1e-6);
     setReading(rms);
     setDialLevel(Math.min(ratio, 1));
 
@@ -635,11 +677,23 @@
     running = false;
     stopMobile();
     stopDesktop();
+    dialFill.classList.remove("triggered");
+    dialGlyph.classList.remove("triggered");
     dialGlyph.textContent = "待命中";
     setDialLevel(0);
     statusLine.textContent = "";
     setLog("已停止偵測");
     toggleRunningUI(false);
+  }
+
+  function applySensRangeForMode(){
+    var cfg = SENS_RANGES[mode];
+    sensRange.min = cfg.min;
+    sensRange.max = cfg.max;
+    sensRange.step = cfg.step;
+    var current = mode === "mobile" ? mobileSensitivity : micSensitivity;
+    sensRange.value = current;
+    sensVal.textContent = current.toFixed(mode === "mobile" ? 1 : 2);
   }
 
   btnMobile.addEventListener("click", function(){
@@ -648,6 +702,7 @@
     btnMobile.classList.add("active");
     btnDesktop.classList.remove("active");
     permNote.textContent = "手機模式：iOS 需要先允許「動作與方向」權限，按下開始後會跳出系統詢問視窗。";
+    applySensRangeForMode();
   });
 
   btnDesktop.addEventListener("click", function(){
@@ -656,15 +711,21 @@
     btnDesktop.classList.add("active");
     btnMobile.classList.remove("active");
     permNote.textContent = "電腦模式：會請求麥克風權限，只用來偵測音量峰值，不會錄音或上傳任何聲音。";
+    applySensRangeForMode();
   });
 
   startBtn.addEventListener("click", start);
   stopBtn.addEventListener("click", stop);
 
   sensRange.addEventListener("input", function(){
-    sensitivity = parseFloat(sensRange.value);
-    micSensitivity = sensitivity;
-    sensVal.textContent = sensitivity.toFixed(2);
+    var v = parseFloat(sensRange.value);
+    if (mode === "mobile") {
+      mobileSensitivity = v;
+      sensVal.textContent = v.toFixed(1);
+    } else {
+      micSensitivity = v;
+      sensVal.textContent = v.toFixed(2);
+    }
   });
 
   cdRange.addEventListener("input", function(){
@@ -673,6 +734,7 @@
   });
 
   // initial paint
+  applySensRangeForMode();
   setDialLevel(0);
   setReading(0);
 })();
